@@ -59,6 +59,10 @@ public class HandEvaluator {
             new Pair()
     );
 
+    public HandResult evaluate(Card[] hand) {
+        return evaluate(Arrays.asList(hand));
+    }
+
     public HandResult evaluate(List<Card> hand) {
         validate(hand);
         hand.sort(Comparator.comparing(Card::getScore).reversed());

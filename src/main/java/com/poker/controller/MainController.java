@@ -25,8 +25,8 @@ public class MainController {
             @RequestParam @Size(min=5, max=5) Card[] player1Hand,
             @RequestParam @Size(min=5, max=5) Card[] player2Hand
     ) {
-        var player1Result = handEvaluator.evaluate(Arrays.asList(player1Hand));
-        var player2Result = handEvaluator.evaluate(Arrays.asList(player2Hand));
+        var player1Result = handEvaluator.evaluate(player1Hand);
+        var player2Result = handEvaluator.evaluate(player2Hand);
 
         if (player1Result.getScore() == player2Result.getScore())
             return String.format("Both players had even hands with %s.", player1Result.getCombination());
