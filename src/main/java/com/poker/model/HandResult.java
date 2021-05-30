@@ -2,12 +2,12 @@ package com.poker.model;
 
 import com.poker.enumerable.Combination;
 
-public class Hand {
+public class HandResult {
     private final Combination combination;
 
     private final int score;
 
-    public Hand(Combination combination, int score) {
+    public HandResult(Combination combination, int score) {
         this.combination = combination;
         this.score = score;
     }

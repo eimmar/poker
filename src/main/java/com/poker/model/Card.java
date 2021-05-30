@@ -5,7 +5,7 @@ import java.util.*;
 import static java.util.Map.entry;
 
 public class Card {
-    final static Map<String, Integer> AvailableRanks = Map.ofEntries(
+    public final static Map<String, Integer> RankScore = Map.ofEntries(
             entry("2", 2),
             entry("3", 3),
             entry("4", 4),
@@ -21,7 +21,7 @@ public class Card {
             entry("A", 14)
     );
 
-    final static List<String> AvailableSuits = Arrays.asList(
+    public final static List<String> AvailableSuits = Arrays.asList(
             "H", // Hearts
             "S", // Spades
             "D", // Diamonds
@@ -33,12 +33,12 @@ public class Card {
     private final Integer score;
 
     public Card(String rank, String suit) {
-        if (!AvailableSuits.contains(suit) || !AvailableRanks.containsKey(rank))
+        if (!AvailableSuits.contains(suit) || !RankScore.containsKey(rank))
             throw new IllegalArgumentException("Card suit and/or rank is incorrect.");
 
         this.rank = rank;
         this.suit = suit;
-        this.score = AvailableRanks.get(rank);
+        this.score = RankScore.get(rank);
     }
 
     public String getRank() {

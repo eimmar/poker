@@ -1,7 +1,7 @@
 package com.poker.service;
 
 import com.poker.model.Card;
-import com.poker.model.Hand;
+import com.poker.model.HandResult;
 import com.poker.enumerable.Combination;
 import org.springframework.stereotype.Component;
 import java.util.*;
@@ -15,17 +15,15 @@ public class HandEvaluator {
         int score = straightFlush.stream().mapToInt(Card::getScore).sum();
 
         if (straightFlush.get(0).getRank().equals("A") && straightFlush.get(4).getRank().equals("2"))
-            score = score - 13;
+            score = score - Card.RankScore.get("A") + 1;
 
         return score + combination.getComboScore();
     }
 
     static boolean isStraight(List<Card> hand) {
-        for (int i = 0; i < hand.size() - 1; i++) {
-            if (hand.get(i).getScore() - hand.get(i + 1).getScore() != 1) {
+        for (int i = 0; i < hand.size() - 1; i++)
+            if (hand.get(i).getScore() - hand.get(i + 1).getScore() != 1)
                 return false;
-            }
-        }
 
         return true;
     }
@@ -50,15 +48,13 @@ public class HandEvaluator {
             new Pair()
     );
 
-    public Hand calculateScore(List<Card> hand) {
+    public HandResult evaluate(List<Card> hand) {
         validate(hand);
         hand.sort(Comparator.comparing(Card::getScore));
 
-        for (var combination : combinations) {
-            if (combination.getScore(hand) != null) {
-                return combination.getScore(hand);
-            }
-        }
+        for (var combination : combinations)
+            if (combination.getResult(hand) != null)
+                return combination.getResult(hand);
 
         return findHighCard(hand);
     }
@@ -79,24 +75,25 @@ public class HandEvaluator {
             throw new IllegalArgumentException("Hand cannot contain more than 4 cards of the same rank.");
     }
 
-    private Hand findHighCard(List<Card> hand) {
+    private HandResult findHighCard(List<Card> hand) {
         int multiplier = hand.size() - 1;
+        int maxCardScore = Card.RankScore.get("A");
         int score = 0;
 
         for (int i = 0; i < multiplier; i++)
-            score += hand.get(i).getScore() + (14 * multiplier - i);
+            score += hand.get(i).getScore() + (maxCardScore * multiplier - i);
 
-        return new Hand(Combination.HighCard, score);
+        return new HandResult(Combination.HighCard, score);
     }
 }
 
 interface PokerCombination {
-    Hand getScore(List<Card> hand);
+    HandResult getResult(List<Card> hand);
 }
 
 class RoyalFlush implements PokerCombination {
     @Override
-    public Hand getScore(List<Card> hand) {
+    public HandResult getResult(List<Card> hand) {
         var pairsBySuit = hand
                 .stream()
                 .collect(groupingBy(Card::getSuit));
@@ -107,7 +104,7 @@ class RoyalFlush implements PokerCombination {
                 hand.get(2).getRank().equals("Q") &&
                 hand.get(3).getRank().equals("J") &&
                 hand.get(4).getRank().equals("10"))
-            return new Hand(Combination.RoyalFlush, Combination.RoyalFlush.getComboScore());
+            return new HandResult(Combination.RoyalFlush, Combination.RoyalFlush.getComboScore());
 
         return null;
     }
@@ -115,7 +112,7 @@ class RoyalFlush implements PokerCombination {
 
 class StraightFlush implements PokerCombination {
     @Override
-    public Hand getScore(List<Card> hand) {
+    public HandResult getResult(List<Card> hand) {
         var pairsBySuit = hand
                 .stream()
                 .collect(groupingBy(Card::getSuit));
@@ -128,7 +125,7 @@ class StraightFlush implements PokerCombination {
                 hand.get(2).getRank().equals("4") &&
                 hand.get(3).getRank().equals("3") &&
                 hand.get(4).getRank().equals("2")))
-            return new Hand(Combination.StraightFlush, calculateStraightScore(hand, Combination.StraightFlush));
+            return new HandResult(Combination.StraightFlush, calculateStraightScore(hand, Combination.StraightFlush));
 
         return null;
     }
@@ -136,13 +133,13 @@ class StraightFlush implements PokerCombination {
 
 class Straight implements PokerCombination {
     @Override
-    public Hand getScore(List<Card> hand) {
+    public HandResult getResult(List<Card> hand) {
         if (isStraight(hand) && (hand.get(0).getRank().equals("A") &&
                 hand.get(1).getRank().equals("5") &&
                 hand.get(2).getRank().equals("4") &&
                 hand.get(3).getRank().equals("3") &&
                 hand.get(4).getRank().equals("2")))
-            return new Hand(Combination.Straight, calculateStraightScore(hand, Combination.Straight));
+            return new HandResult(Combination.Straight, calculateStraightScore(hand, Combination.Straight));
 
         return null;
     }
@@ -150,13 +147,13 @@ class Straight implements PokerCombination {
 
 class Flush implements PokerCombination {
     @Override
-    public Hand getScore(List<Card> hand) {
+    public HandResult getResult(List<Card> hand) {
         var pairsBySuit = hand
                 .stream()
                 .collect(groupingBy(Card::getSuit));
 
         if (pairsBySuit.size() == 1)
-            return new Hand(
+            return new HandResult(
                     Combination.Flush,
                     hand.stream().mapToInt(Card::getScore).sum() + Combination.Flush.getComboScore()
             );
@@ -167,18 +164,18 @@ class Flush implements PokerCombination {
 
 class FourOfAKind implements PokerCombination {
     @Override
-    public Hand getScore(List<Card> hand) {
+    public HandResult getResult(List<Card> hand) {
         if (areAllTheSameRank(hand.get(0), hand.get(1), hand.get(2), hand.get(3)))
-            return new Hand(Combination.FourOfAKind, calculateFourOfAKindScore(hand.get(0), hand.get(4)));
+            return new HandResult(Combination.FourOfAKind, calculateFourOfAKindScore(hand.get(0), hand.get(4)));
 
         if (areAllTheSameRank(hand.get(1), hand.get(2), hand.get(3), hand.get(4)))
-            return new Hand(Combination.FourOfAKind, calculateFourOfAKindScore(hand.get(1), hand.get(0)));
+            return new HandResult(Combination.FourOfAKind, calculateFourOfAKindScore(hand.get(1), hand.get(0)));
 
         return null;
     }
 
     private int calculateFourOfAKindScore(Card comboCard, Card highCard) {
-        return (comboCard.getScore() + 14) * 4
+        return (comboCard.getScore() + Card.RankScore.get("A")) * 4
                 + highCard.getScore()
                 + Combination.FourOfAKind.getComboScore();
     }
@@ -186,18 +183,18 @@ class FourOfAKind implements PokerCombination {
 
 class FullHouse implements PokerCombination {
     @Override
-    public Hand getScore(List<Card> hand) {
+    public HandResult getResult(List<Card> hand) {
         if (areAllTheSameRank(hand.get(0), hand.get(1), hand.get(2)) && areAllTheSameRank(hand.get(3), hand.get(4)))
-            return new Hand(Combination.FullHouse, calculateFullHouseScore(hand.get(0), hand.get(3)));
+            return new HandResult(Combination.FullHouse, calculateFullHouseScore(hand.get(0), hand.get(3)));
 
         if (areAllTheSameRank(hand.get(0), hand.get(1)) && areAllTheSameRank(hand.get(2), hand.get(3), hand.get(4)))
-            return new Hand(Combination.FullHouse, calculateFullHouseScore(hand.get(2), hand.get(0)));
+            return new HandResult(Combination.FullHouse, calculateFullHouseScore(hand.get(2), hand.get(0)));
 
         return null;
     }
 
     private int calculateFullHouseScore(Card mainComboCard, Card secondaryComboCard) {
-        return (mainComboCard.getScore() + 14) * 3
+        return (mainComboCard.getScore() + Card.RankScore.get("A")) * 3
                 + secondaryComboCard.getScore() * 2
                 + Combination.FullHouse.getComboScore();
     }
@@ -205,21 +202,21 @@ class FullHouse implements PokerCombination {
 
 class ThreeOfAKind implements PokerCombination {
     @Override
-    public Hand getScore(List<Card> hand) {
+    public HandResult getResult(List<Card> hand) {
         if (areAllTheSameRank(hand.get(0), hand.get(1), hand.get(2)))
-            return new Hand(
+            return new HandResult(
                     Combination.ThreeOfAKind,
                     calculateThreeOfAKindScore(hand.get(0), hand.get(3), hand.get(4))
             );
 
         if (areAllTheSameRank(hand.get(1), hand.get(2), hand.get(3)))
-            return new Hand(
+            return new HandResult(
                     Combination.ThreeOfAKind,
                     calculateThreeOfAKindScore(hand.get(1), hand.get(0), hand.get(4))
             );
 
         if (areAllTheSameRank(hand.get(2), hand.get(3), hand.get(4)))
-            return new Hand(
+            return new HandResult(
                     Combination.ThreeOfAKind,
                     calculateThreeOfAKindScore(hand.get(2), hand.get(0), hand.get(1))
             );
@@ -228,8 +225,10 @@ class ThreeOfAKind implements PokerCombination {
     }
 
     private int calculateThreeOfAKindScore(Card comboCard, Card highCard, Card secondHighCard) {
-        return (comboCard.getScore() + 28) * 3
-                + highCard.getScore() + 14
+        int maxCardScore = Card.RankScore.get("A");
+
+        return (comboCard.getScore() + maxCardScore * 2) * 3
+                + highCard.getScore() + maxCardScore
                 + secondHighCard.getScore()
                 + Combination.ThreeOfAKind.getComboScore();
     }
@@ -237,21 +236,21 @@ class ThreeOfAKind implements PokerCombination {
 
 class TwoPairs implements PokerCombination {
     @Override
-    public Hand getScore(List<Card> hand) {
+    public HandResult getResult(List<Card> hand) {
         if (areAllTheSameRank(hand.get(0), hand.get(1)) && areAllTheSameRank(hand.get(2), hand.get(3)))
-            return new Hand(
+            return new HandResult(
                     Combination.TwoPairs,
                     calculateTwoPairsScore(hand.get(0), hand.get(2), hand.get(4))
             );
 
         if (areAllTheSameRank(hand.get(1), hand.get(2)) && areAllTheSameRank(hand.get(3), hand.get(4)))
-            return new Hand(
+            return new HandResult(
                     Combination.TwoPairs,
                     calculateTwoPairsScore(hand.get(1), hand.get(3), hand.get(0))
             );
 
         if (areAllTheSameRank(hand.get(0), hand.get(1)) && areAllTheSameRank(hand.get(3), hand.get(4)))
-            return new Hand(
+            return new HandResult(
                     Combination.TwoPairs,
                     calculateTwoPairsScore(hand.get(0), hand.get(3), hand.get(2))
             );
@@ -260,8 +259,10 @@ class TwoPairs implements PokerCombination {
     }
 
     private int calculateTwoPairsScore(Card pair1Card, Card pair2Card, Card highCard) {
-        return (pair1Card.getScore() + 14) * 2
-                + (pair2Card.getScore() + 14) * 2
+        int maxCardScore = Card.RankScore.get("A");
+
+        return (pair1Card.getScore() + maxCardScore) * 2
+                + (pair2Card.getScore() + maxCardScore) * 2
                 + highCard.getScore()
                 + Combination.TwoPairs.getComboScore();
     }
@@ -269,13 +270,13 @@ class TwoPairs implements PokerCombination {
 
 class Pair implements PokerCombination {
     @Override
-    public Hand getScore(List<Card> hand) {
+    public HandResult getResult(List<Card> hand) {
         for (int i = 0; i < hand.size() - 1; i++)
             if (areAllTheSameRank(hand.get(i), hand.get(i + 1))) {
                 Card pairCard = hand.get(i);
                 hand.removeAll(Arrays.asList(hand.get(i), hand.get(i + 1)));
 
-                return new Hand(Combination.Pair, calculatePairScore(pairCard, hand));
+                return new HandResult(Combination.Pair, calculatePairScore(pairCard, hand));
             }
 
         return null;
@@ -283,10 +284,11 @@ class Pair implements PokerCombination {
 
     private int calculatePairScore(Card pairCard, List<Card> highCards) {
         int multiplier = highCards.size();
-        int pairScore = (pairCard.getScore() + 14 * multiplier) * 2 + Combination.Pair.getComboScore();
+        int maxCardScore = Card.RankScore.get("A");
+        int pairScore = (pairCard.getScore() + maxCardScore * multiplier) * 2 + Combination.Pair.getComboScore();
 
         for (int i = 0; i < multiplier; i++)
-            pairScore += highCards.get(i).getScore() + (14 * multiplier - i - 1);
+            pairScore += highCards.get(i).getScore() + (maxCardScore * multiplier - i - 1);
 
         return pairScore;
     }
