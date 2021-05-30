@@ -5,9 +5,9 @@ import com.poker.enumerable.Combination;
 public class HandResult {
     private final Combination combination;
 
-    private final int score;
+    private final double score;
 
-    public HandResult(Combination combination, int score) {
+    public HandResult(Combination combination, double score) {
         this.combination = combination;
         this.score = score;
     }
@@ -16,7 +16,7 @@ public class HandResult {
         return combination;
     }
 
-    public int getScore() {
+    public double getScore() {
         return score;
     }
 }

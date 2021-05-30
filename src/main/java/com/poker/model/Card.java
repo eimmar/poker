@@ -59,11 +59,11 @@ public class Card {
         if (o == null || getClass() != o.getClass()) return false;
         Card card = (Card) o;
 
-        return Objects.equals(rank, card.rank);
+        return rank.equals(card.rank) && suit.equals(card.suit);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(rank);
+        return Objects.hash(rank, suit);
     }
 }

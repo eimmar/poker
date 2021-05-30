@@ -1,16 +1,16 @@
 package com.poker.enumerable;
 
 public enum Combination {
-    HighCard(14),
-    Pair(1000),
-    TwoPairs(2000),
-    ThreeOfAKind(3000),
-    Straight(4000),
-    Flush(5000),
-    FullHouse(6000),
-    FourOfAKind(7000),
-    StraightFlush(8000),
-    RoyalFlush(9000);
+    HighCard(100),
+    Pair(10000),
+    TwoPairs(20000),
+    ThreeOfAKind(30000),
+    Straight(40000),
+    Flush(50000),
+    FullHouse(60000),
+    FourOfAKind(70000),
+    StraightFlush(80000),
+    RoyalFlush(90000);
 
     final int comboScore;
 

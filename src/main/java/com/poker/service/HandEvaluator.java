@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 import java.util.*;
 
 import static com.poker.service.HandEvaluator.*;
+import static com.poker.service.HandEvaluator.calculateHighCardScore;
 import static java.util.stream.Collectors.*;
 
 @Component
@@ -36,6 +37,16 @@ public class HandEvaluator {
         return true;
     }
 
+    static double calculateHighCardScore(List<Card> cards) {
+        int multiplier = cards.size();
+        double score = 0;
+
+        for (int i = 0; i < cards.size(); i++)
+            score += cards.get(i).getScore() * Math.pow(multiplier - i, multiplier - i);
+
+        return score / Combination.HighCard.getComboScore();
+    }
+
     private final List<PokerCombination> combinations = Arrays.asList(
             new RoyalFlush(),
             new StraightFlush(),
@@ -50,7 +61,7 @@ public class HandEvaluator {
 
     public HandResult evaluate(List<Card> hand) {
         validate(hand);
-        hand.sort(Comparator.comparing(Card::getScore));
+        hand.sort(Comparator.comparing(Card::getScore).reversed());
 
         for (var combination : combinations)
             if (combination.getResult(hand) != null)
@@ -60,9 +71,6 @@ public class HandEvaluator {
     }
 
     private void validate(List<Card> hand) {
-        var pairsBySuit = hand
-                .stream()
-                .collect(groupingBy(Card::getSuit));
         var distinctCards = hand.stream().distinct().collect(toList());
 
         if (distinctCards.size() != hand.size())
@@ -70,20 +78,10 @@ public class HandEvaluator {
 
         if (hand.size() != 5)
             throw new IllegalArgumentException("Hand must contain exactly 5 cards.");
-
-        if (pairsBySuit.size() == 1)
-            throw new IllegalArgumentException("Hand cannot contain more than 4 cards of the same rank.");
     }
 
     private HandResult findHighCard(List<Card> hand) {
-        int multiplier = hand.size() - 1;
-        int maxCardScore = Card.RankScore.get("A");
-        int score = 0;
-
-        for (int i = 0; i < multiplier; i++)
-            score += hand.get(i).getScore() + (maxCardScore * multiplier - i);
-
-        return new HandResult(Combination.HighCard, score);
+        return new HandResult(Combination.HighCard, calculateHighCardScore(hand));
     }
 }
 
@@ -120,7 +118,7 @@ class StraightFlush implements PokerCombination {
         if (pairsBySuit.size() != 1)
             return null;
 
-        if (isStraight(hand) && (hand.get(0).getRank().equals("A") &&
+        if (isStraight(hand) || (hand.get(0).getRank().equals("A") &&
                 hand.get(1).getRank().equals("5") &&
                 hand.get(2).getRank().equals("4") &&
                 hand.get(3).getRank().equals("3") &&
@@ -134,7 +132,7 @@ class StraightFlush implements PokerCombination {
 class Straight implements PokerCombination {
     @Override
     public HandResult getResult(List<Card> hand) {
-        if (isStraight(hand) && (hand.get(0).getRank().equals("A") &&
+        if (isStraight(hand) || (hand.get(0).getRank().equals("A") &&
                 hand.get(1).getRank().equals("5") &&
                 hand.get(2).getRank().equals("4") &&
                 hand.get(3).getRank().equals("3") &&
@@ -155,7 +153,7 @@ class Flush implements PokerCombination {
         if (pairsBySuit.size() == 1)
             return new HandResult(
                     Combination.Flush,
-                    hand.stream().mapToInt(Card::getScore).sum() + Combination.Flush.getComboScore()
+                    calculateHighCardScore(hand) + Combination.Flush.getComboScore()
             );
 
         return null;
@@ -175,7 +173,7 @@ class FourOfAKind implements PokerCombination {
     }
 
     private int calculateFourOfAKindScore(Card comboCard, Card highCard) {
-        return (comboCard.getScore() + Card.RankScore.get("A")) * 4
+        return (comboCard.getScore() * Combination.HighCard.getComboScore())
                 + highCard.getScore()
                 + Combination.FourOfAKind.getComboScore();
     }
@@ -194,8 +192,8 @@ class FullHouse implements PokerCombination {
     }
 
     private int calculateFullHouseScore(Card mainComboCard, Card secondaryComboCard) {
-        return (mainComboCard.getScore() + Card.RankScore.get("A")) * 3
-                + secondaryComboCard.getScore() * 2
+        return (mainComboCard.getScore() * Combination.HighCard.getComboScore())
+                + secondaryComboCard.getScore()
                 + Combination.FullHouse.getComboScore();
     }
 }
@@ -206,30 +204,27 @@ class ThreeOfAKind implements PokerCombination {
         if (areAllTheSameRank(hand.get(0), hand.get(1), hand.get(2)))
             return new HandResult(
                     Combination.ThreeOfAKind,
-                    calculateThreeOfAKindScore(hand.get(0), hand.get(3), hand.get(4))
+                    calculateThreeOfAKindScore(hand.get(0), Arrays.asList(hand.get(3), hand.get(4)))
             );
 
         if (areAllTheSameRank(hand.get(1), hand.get(2), hand.get(3)))
             return new HandResult(
                     Combination.ThreeOfAKind,
-                    calculateThreeOfAKindScore(hand.get(1), hand.get(0), hand.get(4))
+                    calculateThreeOfAKindScore(hand.get(1), Arrays.asList(hand.get(0), hand.get(4)))
             );
 
         if (areAllTheSameRank(hand.get(2), hand.get(3), hand.get(4)))
             return new HandResult(
                     Combination.ThreeOfAKind,
-                    calculateThreeOfAKindScore(hand.get(2), hand.get(0), hand.get(1))
+                    calculateThreeOfAKindScore(hand.get(2), Arrays.asList(hand.get(0), hand.get(1)))
             );
 
         return null;
     }
 
-    private int calculateThreeOfAKindScore(Card comboCard, Card highCard, Card secondHighCard) {
-        int maxCardScore = Card.RankScore.get("A");
-
-        return (comboCard.getScore() + maxCardScore * 2) * 3
-                + highCard.getScore() + maxCardScore
-                + secondHighCard.getScore()
+    private double calculateThreeOfAKindScore(Card comboCard, List<Card> highCards) {
+        return (comboCard.getScore() * Combination.HighCard.getComboScore())
+                + calculateHighCardScore(highCards)
                 + Combination.ThreeOfAKind.getComboScore();
     }
 }
@@ -259,10 +254,10 @@ class TwoPairs implements PokerCombination {
     }
 
     private int calculateTwoPairsScore(Card pair1Card, Card pair2Card, Card highCard) {
-        int maxCardScore = Card.RankScore.get("A");
+        int highCardScore = Combination.HighCard.getComboScore();
 
-        return (pair1Card.getScore() + maxCardScore) * 2
-                + (pair2Card.getScore() + maxCardScore) * 2
+        return (pair1Card.getScore() + highCardScore)
+                + (pair2Card.getScore() + highCardScore)
                 + highCard.getScore()
                 + Combination.TwoPairs.getComboScore();
     }
@@ -274,22 +269,19 @@ class Pair implements PokerCombination {
         for (int i = 0; i < hand.size() - 1; i++)
             if (areAllTheSameRank(hand.get(i), hand.get(i + 1))) {
                 Card pairCard = hand.get(i);
-                hand.removeAll(Arrays.asList(hand.get(i), hand.get(i + 1)));
+                var highCards = new ArrayList<>(hand);
 
-                return new HandResult(Combination.Pair, calculatePairScore(pairCard, hand));
+                highCards.removeAll(Arrays.asList(hand.get(i), hand.get(i + 1)));
+
+                return new HandResult(Combination.Pair, calculatePairScore(pairCard, highCards));
             }
 
         return null;
     }
 
-    private int calculatePairScore(Card pairCard, List<Card> highCards) {
-        int multiplier = highCards.size();
-        int maxCardScore = Card.RankScore.get("A");
-        int pairScore = (pairCard.getScore() + maxCardScore * multiplier) * 2 + Combination.Pair.getComboScore();
-
-        for (int i = 0; i < multiplier; i++)
-            pairScore += highCards.get(i).getScore() + (maxCardScore * multiplier - i - 1);
-
-        return pairScore;
+    private double calculatePairScore(Card pairCard, List<Card> highCards) {
+        return (pairCard.getScore() * Combination.HighCard.getComboScore())
+                + Combination.Pair.getComboScore()
+                + calculateHighCardScore(highCards);
     }
 }
