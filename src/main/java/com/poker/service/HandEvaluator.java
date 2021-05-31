@@ -67,9 +67,12 @@ public class HandEvaluator {
         validate(hand);
         hand.sort(Comparator.comparing(Card::getScore).reversed());
 
-        for (var combination : combinations)
-            if (combination.getResult(hand) != null)
-                return combination.getResult(hand);
+        for (var combination : combinations) {
+            HandResult combinationResult = combination.getResult(hand);
+
+            if (combinationResult != null)
+                return combinationResult;
+        }
 
         return findHighCard(hand);
     }
